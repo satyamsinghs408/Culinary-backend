@@ -77,3 +77,29 @@ exports.getTransactions = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// @desc    Delete Transaction & Revert Stock
+// @route   DELETE /api/inventory/transaction/:id
+exports.deleteTransaction = async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id);
+    if (!transaction) return res.status(404).json({ message: 'Transaction not found' });
+
+    // Revert Stock
+    if (transaction.type === 'INWARD') {
+        // Was added to INWARD, so remove it
+        await RawMaterial.findByIdAndUpdate(transaction.itemId, {
+            $inc: { 'stock.inward': -Number(transaction.quantity) }
+        });
+    } else if (transaction.type === 'ISSUANCE') {
+        // Was added to ISSUED, so remove it (effectively putting it back in stock)
+        await RawMaterial.findByIdAndUpdate(transaction.itemId, {
+            $inc: { 'stock.issued': -Number(transaction.quantity) }
+        });
+    }
+
+    await Transaction.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'Transaction deleted and stock reverted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

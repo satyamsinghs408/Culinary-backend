@@ -105,3 +105,32 @@ exports.getProductionHistory = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+// @desc    Cancel Production Plan & Revert Allocation
+// @route   DELETE /api/production/:id
+exports.cancelProduction = async (req, res) => {
+  try {
+    const batch = await Production.findById(req.params.id);
+    if (!batch) return res.status(404).json({ message: 'Batch not found' });
+
+    // Safety Check: Only allow cancelling if 'Allocated' (not enabled for Partial/Completed yet)
+    // Note: Our seed data might use 'Planned' or 'Allocated', check usage. 
+    // In planProduction we set status: 'Allocated'.
+    if (batch.status !== 'Allocated' && batch.status !== 'Planned') {
+        return res.status(400).json({ message: 'Cannot cancel a batch that has already started production.' });
+    }
+
+    // Revert Stock Allocation
+    const updatePromises = batch.bomSnapshot.map(item => {
+      const allocatedQty = item.qty * Number(batch.quantity);
+      return RawMaterial.findByIdAndUpdate(item.rmId, {
+        $inc: { 'stock.allocated': -allocatedQty }
+      });
+    });
+    await Promise.all(updatePromises);
+
+    await Production.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'Production plan cancelled and allocation reverted' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
