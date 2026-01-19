@@ -33,5 +33,13 @@ app.get('/', (req, res) => {
 });
 
 // Import Routes (To be added later)
-// const authRoutes = require('./routes/authRoutes');
-// app.use('/api/auth', authRoutes);
+const rawMaterialRoutes = require('./routes/rawMaterialRoutes');
+const finishedGoodRoutes = require('./routes/finishedGoodRoutes');
+
+app.use('/api/raw-materials', rawMaterialRoutes);
+app.use('/api/finished-goods', finishedGoodRoutes);
+app.use('/api/inventory', require('./routes/inventoryRoutes'));
+app.use('/api/production', require('./routes/productionRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
+
+
